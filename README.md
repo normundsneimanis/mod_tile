@@ -22,12 +22,13 @@
       libcurl4-openssl-dev \
       libglib2.0-dev \
       libiniparser-dev \
+      libjemalloc-dev \
       libmapnik-dev
 
     # Download, Build & Install `mod_tile`
     export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
     cd /tmp
-    git clone --depth 1 https://github.com/normundsniemanis/mod_tile.git 
+    git clone --depth 1 https://github.com/normundsneimanis/mod_tile.git 
     cd mod_tile
     mkdir build
     cd build

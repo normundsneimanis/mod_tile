@@ -68,6 +68,47 @@ void display_rate(struct timeval start, struct timeval end, int num)
 	g_logger(G_LOG_LEVEL_MESSAGE, "\t%d in %.2f seconds (%.2f/s)", num, sec, num / sec);
 }
 
+void display_rate_f(struct timeval start, struct timeval end, int num, FILE* fptr)
+{
+	int d_s, d_us;
+	float sec;
+
+	d_s = end.tv_sec - start.tv_sec;
+	d_us = end.tv_usec - start.tv_usec;
+
+	sec = d_s + d_us / 1000000.0;
+
+	fprintf(fptr, "\t%d in %.2f seconds (%.2f/s)\n", num, sec, num / sec);
+}
+
+char* log_stats_file = "/tmp/render_list.stats";
+
+void log_rate(struct timeval start, struct timeval end, int num_render, int num_all, int x, int x_max) {
+	// Attempts to adjust the stats for the QMAX tiles which are likely in the queue
+	if (!(num_render % 10)) {
+		FILE* fptr = fopen(log_stats_file, "w");
+
+		if (!fptr) {
+			g_logger(G_LOG_LEVEL_ERROR, "Failed to open file %s: %s", log_stats_file, strerror(errno));
+			return;
+		}
+
+		gettimeofday(&end, NULL);
+		if (x_max > 0) {
+			fprintf(fptr, "Metatiles rendered (%d/%d %.2f):\n", x, x_max, (float) x / (float) x_max);
+		} else {
+			fprintf(fptr, "Metatiles rendered:\n");
+		}
+		display_rate_f(start, end, num_render, fptr);
+		fprintf(fptr, "Total tiles rendered:\n");
+		display_rate_f(start, end, num_render * METATILE * METATILE, fptr);
+		fprintf(fptr, "Total tiles handled:\n");
+		display_rate_f(start, end, num_all, fptr);
+
+		fclose(fptr);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	const char *config_file_name_default = RENDERD_CONFIG;
@@ -194,7 +235,7 @@ int main(int argc, char **argv)
 				break;
 
 			case 'G': /* -G, --max-lat */
-				max_lat = min_max_double_opt(optarg, "maximum latitute", -85.0511, 85.0511);
+				max_lat = min_max_double_opt(optarg, "maximum latitude", -85.0511, 85.0511);
 				max_lat_passed = 1;
 				break;
 
@@ -224,7 +265,7 @@ int main(int argc, char **argv)
 				break;
 
 			case 'g': /* -g, --min-lat */
-				min_lat = min_max_double_opt(optarg, "minimum latitute", -85.0511, 85.0511);
+				min_lat = min_max_double_opt(optarg, "minimum latitude", -85.0511, 85.0511);
 				min_lat_passed = 1;
 				break;
 
@@ -355,6 +396,7 @@ int main(int argc, char **argv)
 		}
 
 		if (!tile_dir_passed) {
+			printf("tile_dir in XML: [%s]", maps[map_section_num].tile_dir);
 			tile_dir = strndup(maps[map_section_num].tile_dir, PATH_MAX);
 			tile_dir_passed = 1;
 		}
@@ -475,6 +517,8 @@ int main(int argc, char **argv)
 					if (force || (s.size < 0) || (s.expired)) {
 						enqueue(mapname, x, y, z);
 						num_render++;
+
+						log_rate(start, end, num_render, num_all, x, current_max_x);
 					}
 
 					num_all++;
@@ -521,16 +565,7 @@ int main(int argc, char **argv)
 				enqueue(mapname, x, y, z);
 				num_render++;
 
-				// Attempts to adjust the stats for the QMAX tiles which are likely in the queue
-				if (!(num_render % 10)) {
-					gettimeofday(&end, NULL);
-					g_logger(G_LOG_LEVEL_MESSAGE, "Metatiles rendered:");
-					display_rate(start, end, num_render);
-					g_logger(G_LOG_LEVEL_MESSAGE, "Total tiles rendered:");
-					display_rate(start, end, num_render * METATILE * METATILE);
-					g_logger(G_LOG_LEVEL_MESSAGE, "Total tiles handled:");
-					display_rate(start, end, num_all);
-				}
+				log_rate(start, end, num_render, num_all, x, 0);
 			} else {
 				if (verbose) {
 					char name[PATH_MAX];

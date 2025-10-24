@@ -355,7 +355,7 @@ int make_connection(const char *spath)
 
 void *thread_main(void *arg)
 {
-	const char *spath = (const char *)arg;
+	const char *spath = arg;
 	int fd = make_connection(spath);
 
 	if (fd < 0) {

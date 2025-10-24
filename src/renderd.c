@@ -282,7 +282,7 @@ void process_loop(int listen_fd)
 
 						if (rsp == cmdNotDone) {
 							cmd.cmd = rsp;
-							g_logger(G_LOG_LEVEL_DEBUG, "Sending NotDone response(%d)", rsp);
+							g_logger(G_LOG_LEVEL_ERROR, "Sending NotDone response(%d)", rsp);
 							ret = send_cmd(&cmd, fd);
 						}
 					}
@@ -593,7 +593,9 @@ void *slave_thread(void * arg)
 	bzero(req_slave, sizeof(struct protocol));
 	bzero(resp, sizeof(struct protocol));
 
-	g_logger(G_LOG_LEVEL_DEBUG, "Starting slave thread: %lu", (unsigned long) pthread_self());
+	unsigned long thread_id = pthread_self();
+
+	g_logger(G_LOG_LEVEL_DEBUG, "Starting slave thread: %lu", thread_id);
 
 	while (1) {
 		if (pfd == FD_INVALID) {
@@ -708,11 +710,13 @@ void *slave_thread(void * arg)
 					//Sleep for a while to make sure we don't overload the renderer
 					//This only happens if it didn't correctly block on the rendering
 					//request
+					g_logger(G_LOG_LEVEL_ERROR, "Thead %lu Sleeping for %s seconds", thread_id, seconds);
 					sleep(seconds);
 				}
 			}
 
 		} else {
+			g_logger(G_LOG_LEVEL_ERROR, "Thead %lu Sleeping for 1 second", thread_id);
 			sleep(1); // TODO: Use an event to indicate there are new requests
 		}
 	}
